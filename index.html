@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>COVID</title>
+  <!-- Bootstrap CSS v5.2.1 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-iYQeCzEYFbKjA/T2uDLTpkwGzCiq6soy8tYaI1GyVh/UjpbCx/TYkiZhlZB6+fzT" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.12/dist/sweetalert2.min.css"
+    integrity="sha256-7jUS+MWeqkFdmW9ozkZ7mPagz+QmMbsBlt+Q3MsE+FU=" crossorigin="anonymous">
+
+  <style>
+    .switch {
+      --button-width: 3.5em;
+      --button-height: 2em;
+      --toggle-diameter: 1.5em;
+      --button-toggle-offset: calc((var(--button-height) - var(--toggle-diameter)) / 2);
+      --toggle-shadow-offset: 10px;
+      --toggle-wider: 3em;
+      --color-grey: #cccccc;
+      --color-green: #4296f4;
+    }
+
+    .slider {
+      display: inline-block;
+      width: var(--button-width);
+      height: var(--button-height);
+      background-color: var(--color-grey);
+      border-radius: calc(var(--button-height) / 2);
+      position: relative;
+      transition: 0.3s all ease-in-out;
+    }
+
+    .slider::after {
+      content: "";
+      display: inline-block;
+      width: var(--toggle-diameter);
+      height: var(--toggle-diameter);
+      background-color: #fff;
+      border-radius: calc(var(--toggle-diameter) / 2);
+      position: absolute;
+      top: var(--button-toggle-offset);
+      transform: translateX(var(--button-toggle-offset));
+      box-shadow: var(--toggle-shadow-offset) 0 calc(var(--toggle-shadow-offset) * 4) rgba(0, 0, 0, 0.1);
+      transition: 0.3s all ease-in-out;
+    }
+
+    .switch input[type="checkbox"]:checked+.slider {
+      background-color: var(--color-green);
+    }
+
+    .switch input[type="checkbox"]:checked+.slider::after {
+      transform: translateX(calc(var(--button-width) - var(--toggle-diameter) - var(--button-toggle-offset)));
+      box-shadow: calc(var(--toggle-shadow-offset) * -1) 0 calc(var(--toggle-shadow-offset) * 4) rgba(0, 0, 0, 0.1);
+    }
+
+    .switch input[type="checkbox"] {
+      display: none;
+    }
+
+    .switch input[type="checkbox"]:active+.slider::after {
+      width: var(--toggle-wider);
+    }
+
+    .switch input[type="checkbox"]:checked:active+.slider::after {
+      transform: translateX(calc(var(--button-width) - var(--toggle-wider) - var(--button-toggle-offset)));
+    }
+  </style>
+
+</head>
+
+<body style="background-color: #efefef;">
+  <nav class="navbar navbar-expand-lg bg-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand text-white">Grupo 4</a>
+      <a class="navbar-brand text-white">Sistema Predictor de covid</a>
+      <a class="navbar-brand text-white"></a>
+    </div>
+  </nav>
+  <div id="app" class="container-fluid mt-5">
+    <div class="card col-md-10 col-12 mx-auto shadow-lg border-0"
+      style="background-color: #ffffff; border-radius: 30px !important">
+      <div class="card-body">
+        <h4 class="card-title text-center">SINTOMAS</h4>
+        <div class="row justify-content-between" id="sintomas">
+        </div>
+        <div class="d-flex justify-content-center">
+          <button type="button" class="btn btn-dark mx-2" onclick="predecir()">Predecir</button>
+          <button type="button" class="btn btn-dark mx-2" onclick="mostrarInfo()">Información</button>
+          <button type="button" class="btn btn-dark mx-2" onclick="mostrarCorr()" id="mostrarcorr">Mostrar Corr</button>
+          <button type="button" class="btn btn-dark mx-2 d-none" onclick="ocultarcCorr()" id="ocultarcorr">Ocultar
+            Corr</button>
+        </div>
+      </div>
+    </div>
+    <div class="card col-md-10 col-12 mx-auto shadow-lg border-0 my-2 d-none"
+      style="background-color: #ffffff; border-radius: 30px !important" id="corr">
+      <div class="card-body">
+        <h4 class="card-title text-center">GRÁFICO DE CORRELACIÓN</h4>
+        <div class="d-flex justify-content-center my-2">
+          <img src="./public/assets/img/corr.png" class="img-fluid" alt="...">
+        </div>
+      </div>
+    </div>
+
+
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.12/dist/sweetalert2.all.min.js"
+    integrity="sha256-2Dbg51yxfa7qZ8CSKqsNxHtph8UHdgbzxXF9ANtyJHo=" crossorigin="anonymous"></script>
+  <script type="text/javascript">
+    var variables = [
+      { name: 'diarrea', title: 'Diarrea' },
+      { name: 'nauseas', title: 'Nauseas' },
+      { name: 'anosmia_hiposmia', title: 'Anosmia/hiposmia' },
+      { name: 'dolor_abdominal', title: 'Dolor abdominal' },
+      { name: 'dolor_articulaciones', title: 'Dolor en articulaciones' },
+      { name: 'dolor_muscular', title: 'Dolor muscular' },
+      { name: 'tos', title: 'Tos' },
+      { name: 'cefalea', title: 'Cefalea' },
+      { name: 'congestion_nasal', title: 'Congestion nasal' },
+      { name: 'dificultad_respiratoria', title: 'Dificultad respiratoria' },
+      { name: 'dolor_garganta', title: 'Dolor de garganta' },
+      { name: 'fiebre', title: 'Fiebre' },
+      { name: 'dolor_pecho', title: 'Dolor de pecho' },
+      { name: 'otros_sintomas', title: 'Otros sintomas' },
+    ];
+    var sintomas = document.getElementById('sintomas');
+    sintomas.innerHTML = variables.map(variable => {
+      return `
+    <div class="col-sm-6 col-md-6 col-lg-4 col-12 my-3">
+      <label class="switch ms-5">
+        <input type="checkbox" value="" id="${variable.name}">
+        <span class="slider"></span>
+      </label>
+      <label class="ms-2 pt-1" for="${variable.name}">
+        ${variable.title}
+      </label>
+    </div>
+  `;
+    }).join('');
+    var modelo = null;
+    const Loss = 0.2749047875404358;
+    const Accuracy = 0.9094829559326172;
+    function mostrarInfo() {
+      Swal.fire({
+        title: 'Información del Modelo',
+        icon: 'info',
+        html: `
+          <div class="card my-1 border-0" style="background-color: #ffff; border-radius: 30px !important">
+            <div class="card-body">
+              <h4 class="card-title text-center">Precisión: ${Accuracy} </h4>
+              <h4 class="card-title text-center">Pérdida : ${Loss} </h4>
+            </div>
+          </div>
+          <div class="card my-2 border-0" style="background-color: #ffff; border-radius: 30px !important">
+            <ul class="list-group list-group-flush" style="background-color: #ffff; border-radius: 30px !important">
+              <li class="list-group-item">Modelo usado: MLP con tensorflow y keras</li>
+              <li class="list-group-item">Capa de entrada: relu</li>
+              <li class="list-group-item">Capa de oculta: relu</li>
+              <li class="list-group-item">Capa de salida: sigmoid</li>
+            </ul>
+          </div>
+          `,
+        showCloseButton: true,
+        confirmButtonText: 'Ok',
+        timer: 9000,
+        background: '#efefef',
+        timerProgressBar: true,
+      })
+    }
+    (async () => {
+      console.log('Cargando modelo...');
+      modelo = await tf.loadLayersModel('./src/assets/model.json');
+      Swal.fire({
+        title: 'Éxito!',
+        text: 'Modelo cargado',
+        icon: 'success',
+        confirmButtonText: 'Ok'
+      })
+    })();
+    var corr = document.getElementById('corr');
+    function mostrarCorr() {
+      corr.classList.remove('d-none');
+      document.getElementById('mostrarcorr').classList.add('d-none');
+      document.getElementById('ocultarcorr').classList.remove('d-none');
+    }
+    function ocultarcCorr() {
+      corr.classList.add('d-none');
+      document.getElementById('mostrarcorr').classList.remove('d-none');
+      document.getElementById('ocultarcorr').classList.add('d-none');
+    }
+    function predecir() {
+      //obtenemos todos los campos
+      var diarrea = document.getElementById('diarrea').checked ? 1 : 0;
+      var nauseas = document.getElementById('nauseas').checked ? 1 : 0;
+      var anosmia_hiposmia = document.getElementById('anosmia_hiposmia').checked ? 1 : 0;
+      var dolor_abdominal = document.getElementById('dolor_abdominal').checked ? 1 : 0;
+      var dolor_articulaciones = document.getElementById('dolor_articulaciones').checked ? 1 : 0;
+      var dolor_muscular = document.getElementById('dolor_muscular').checked ? 1 : 0;
+      var tos = document.getElementById('tos').checked ? 1 : 0;
+      var cefalea = document.getElementById('cefalea').checked ? 1 : 0;
+      var congestion_nasal = document.getElementById('congestion_nasal').checked ? 1 : 0;
+      var dificultad_respiratoria = document.getElementById('dificultad_respiratoria').checked ? 1 : 0;
+      var dolor_garganta = document.getElementById('dolor_garganta').checked ? 1 : 0;
+      var fiebre = document.getElementById('fiebre').checked ? 1 : 0;
+      var dolor_pecho = document.getElementById('dolor_pecho').checked ? 1 : 0;
+      var otros_sintomas = document.getElementById('otros_sintomas').checked ? 1 : 0;
+
+      //obtenemos el elemento a modificar para dar la prediccion
+
+      if (modelo != null) {
+        // orden: tos	cefalea	congestion_nasal	dificultad_respiratoria	dolor_garganta	fiebre	diarrea	nauseas	anosmia_hiposmia	dolor_abdominal	dolor_articulaciones	dolor_muscular	dolor_pecho	otros_sintomas
+        var tensor = tf.tensor2d([[tos, cefalea, congestion_nasal, dificultad_respiratoria, dolor_garganta, fiebre, diarrea, nauseas, anosmia_hiposmia, dolor_abdominal, dolor_articulaciones, dolor_muscular, dolor_pecho, otros_sintomas]]);
+        var prediccion = modelo.predict(tensor).dataSync();
+        //precisión del modelo
+        Swal.fire({
+          title: 'Resultados',
+          icon: 'info',
+          html: `
+          <div class="card my-3 border-0" style="background-color: #ffff; border-radius: 30px !important">
+            <div class="card-body">
+              <h4 class="card-title text-center">Predicción: ${prediccion} </h4>
+              <h4 class="card-title text-center">SOSPECHOSO COVID : ${prediccion > 0.5 ? 'SI' : 'NO'} </h4>
+            </div>
+          </div>
+          `,
+          showCloseButton: true,
+          confirmButtonText: 'Ok',
+          timer: 9000,
+          background: '#efefef',
+          timerProgressBar: true,
+        })
+
+        //RESETEAR CHECKBOX
+        document.getElementById('diarrea').checked = false;
+        document.getElementById('nauseas').checked = false;
+        document.getElementById('anosmia_hiposmia').checked = false;
+        document.getElementById('dolor_abdominal').checked = false;
+        document.getElementById('dolor_articulaciones').checked = false;
+        document.getElementById('dolor_muscular').checked = false;
+        document.getElementById('tos').checked = false;
+        document.getElementById('cefalea').checked = false;
+        document.getElementById('congestion_nasal').checked = false;
+        document.getElementById('dificultad_respiratoria').checked = false;
+        document.getElementById('dolor_garganta').checked = false;
+        document.getElementById('fiebre').checked = false;
+        document.getElementById('dolor_pecho').checked = false;
+        document.getElementById('otros_sintomas').checked = false;
+
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Oops...',
+          text: 'No se pudo cargar el modelo!',
+        })
+      }
+
+    }
+  </script>
+</body>
+
+</html>
